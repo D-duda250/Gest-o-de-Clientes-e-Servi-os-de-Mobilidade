@@ -1,10 +1,13 @@
 ﻿using CsvHelper.Configuration.Attributes;
+using SDTP1;
 using System;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Collections.Generic;
+
 
 class Servidor
 {
@@ -47,17 +50,76 @@ class Servidor
             Thread newThread = new Thread(new ThreadStart(Mota));
             newThread.Name = String.Format("Thread{0}", i + 1);
             newThread.Start();
+
+
+            var path = @"C:\Users\Duarte Oliveira\source\repos\SDTP1\SDTP1\Tabela_Nomes.csv";
+            var reader = new StreamReader(File.OpenRead(path));
+            var line = reader.ReadLine();
+            var columns = line.Split(",");
+            (int indexName, int indexDocument) = MatrizColunas(columns);
+            var servico = ListaServico(reader, indexName, indexDocument);
+
+            foreach ( var servicos in servico )
+            {
+                Console.WriteLine($"Nome: {servicos.Name} / servico: {servicos.Servico}");
+            }
         }
+
 
         // The main thread exits, but the application continues to
         // run until all foreground threads have exited.
     }
 
 
+        private static (int, int) MatrizColunas(string[] columns)
+        {
+            int i = 0;
+            Console.WriteLine("A pegar as posições de cada coluna");
+            int indexName = 0;
+            int indexDocument = 0;
+            for (i = 0; i < columns.Length; i++)
+            {
+                if (string.IsNullOrEmpty(columns[i]))
+                { continue; }
+                if (columns[i].ToLower() == "nome")
+                {
+                    indexName = i;
+                    Console.WriteLine($"Posicao da coluna de Nome: {indexName}");
+                }
+                if (columns[i].ToLower() == "servico")
+                {
+                    indexName = i;
+                    Console.WriteLine($"Posicao da coluna de Servico: {indexDocument}");
+                }
+            }
+            return (indexName, indexDocument);
+        }
+    
+    private static List<ServicoModel> ListaServico(StreamReader reader,int indexName, int indexDocument){
+
+        Console.WriteLine("A montar lista");
+        string line;
+        var servico = new List<ServicoModel>();
+        ServicoModel servicoModel;
+        while((line = reader.ReadLine()) != null)
+        {
+            var values = line.Split(",");
+            servicoModel= new ServicoModel();
+            if(indexName == 0)
+                servicoModel.Name = values[indexName];
+            if (indexDocument == 0)
+                servicoModel.Servico = values[indexDocument];
+            servico.Add(servicoModel);
+        }
+        return servico;
+    }
+
+   
+
     public static void Mota()
     {
-        var path = @"C:/Users/Octav/Desktop/Nova pasta/Sist Distribuidos 2024/TP1/ficheiros_de_exemplo/Ficheiros de exemplo/Servico.csv";
-        var servA = @"C:/Users/Octav/Desktop/Nova pasta/Sist Distribuidos 2024/TP1/ficheiros_de_exemplo/Ficheiros de exemplo/Servico_A.csv";
+        var path = @"C:\Users\Duarte Oliveira\source\repos\SDTP1\SDTP1\Servico.csv";
+        var servA = @"C:\Users\Duarte Oliveira\source\repos\SDTP1\SDTP1\Servico_A.csv";
 
         var Reader = new StreamReader(File.OpenRead(path)); 
         var line = Reader.ReadLine();
