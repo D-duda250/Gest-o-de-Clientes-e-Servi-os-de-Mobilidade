@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using System.Diagnostics.Metrics;
+using System.Security.AccessControl;
 
 
 class Servidor
@@ -169,7 +170,7 @@ class Servidor
                             }
                         }
 
-                        // Agora você tem o número de IDs associados a cada serviço
+                        // Número de IDs associados a cada serviço
                         // Por exemplo, sA contém o número de IDs associados ao "Servico_A", e assim por diante
 
                         // Chame o método para adicionar um novo ID
@@ -205,12 +206,22 @@ class Servidor
                         if (servicoMenosIDs != null)
                         {
                             AdicionarNovoID("C:\\Users\\Octav\\Source\\Repos\\SDTP1\\SDTP1\\Servidor.cs", servicoMenosIDs, totalIDs);
-
+                            enviaMsg = $"O ClienteID '{totalIDs}' está associado ao Serviço '{servicoMenosIDs}'.";
+                            responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                            stream.Write(responseBytes, 0, responseBytes.Length);
                         }
                         
                     }
 
+                    enviaMsg = "Qual e o seu ID?";
+                    responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                    stream.Write(responseBytes, 0, responseBytes.Length);
 
+                    int bytesReceived = stream.Read(dataReceive, 0, dataReceive.Length);
+                    string responseData = Encoding.ASCII.GetString(dataReceive, 0, bytesReceived);
+
+
+                    servicoAssociado = VerificarServicoAssociado(associations, responseData); 
 
 
                     if (servicoAssociado != null)
@@ -267,8 +278,8 @@ class Servidor
                                         responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
                                         stream.Write(responseBytes, 0, responseBytes.Length);
 
-                                        int bytesReceived = stream.Read(dataReceive, 0, dataReceive.Length);
-                                        string responseData = Encoding.ASCII.GetString(dataReceive, 0, bytesReceived);
+                                        bytesReceived = stream.Read(dataReceive, 0, dataReceive.Length);
+                                        responseData = Encoding.ASCII.GetString(dataReceive, 0, bytesReceived);
 
                                         i = 0;
 
@@ -325,8 +336,8 @@ class Servidor
                                         responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
                                         stream.Write(responseBytes, 0, responseBytes.Length);
 
-                                        int bytesReceived = stream.Read(dataReceive, 0, dataReceive.Length);
-                                        string responseData = Encoding.ASCII.GetString(dataReceive, 0, bytesReceived);
+                                        bytesReceived = stream.Read(dataReceive, 0, dataReceive.Length);
+                                        responseData = Encoding.ASCII.GetString(dataReceive, 0, bytesReceived);
 
                                         i = 0;
 
@@ -584,7 +595,7 @@ class Servidor
 
     static void AtualizarTarefas(string filePath, List<Tarefa> tarefas)
     {
-
+            
         
             // Criar um novo arquivo CSV ou sobrescrever o existente com as tarefas atualizadas
             using (StreamWriter writer = new StreamWriter(filePath))
