@@ -154,7 +154,7 @@ class Servidor
                         int sC = 0;
                         int sD = 0;
 
-                        // Percorre a lista de associações para contar o número de IDs associados a cada serviço
+                        // Percorre a lista de associacões para contar o número de IDs associados a cada servico
                         foreach (var ID in associations)
                         {
                             if (ID.ServicoID == "Servico_A")
@@ -175,10 +175,10 @@ class Servidor
                             }
                         }
 
-                        // Número de IDs associados a cada serviço
-                        // Por exemplo, sA contém o número de IDs associados ao "Servico_A", e assim por diante
+                        // Número de IDs associados a cada servico
+                        // Por exemplo, sA contem o número de IDs associados ao "Servico_A", e assim por diante
 
-                        // Chame o método para adicionar um novo ID
+                        // Chame o metodo para adicionar um novo ID
                         
                         string servicoMenosIDs = null;
                         int menorNumeroIDs = int.MaxValue;
@@ -207,11 +207,11 @@ class Servidor
                             servicoMenosIDs = "Servico_D";
                         }
                         int totalIDs = sA + sB + sC + sD+1;
-                        // Adiciona o novo ID ao serviço com o menor número de IDs associados
+                        // Adiciona o novo ID ao servico com o menor número de IDs associados
                         if (servicoMenosIDs != null)
                         {
                             AdicionarNovoID("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servidor.cs", servicoMenosIDs, totalIDs);
-                            enviaMsg = $"O ClienteID '{totalIDs}' está associado ao Serviço '{servicoMenosIDs}'.";
+                            enviaMsg = $"O ClienteID '{totalIDs}' esta associado ao Servico '{servicoMenosIDs}'.";
                             responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
                             stream.Write(responseBytes, 0, responseBytes.Length);
                         }
@@ -231,7 +231,7 @@ class Servidor
 
                     if (servicoAssociado != null)
                     {
-                        enviaMsg = $"O ClienteID '{data}' está associado ao Serviço '{servicoAssociado}'.";
+                        enviaMsg = $"O ClienteID '{data}' esta associado ao Servico '{servicoAssociado}'.";
                         responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
                         stream.Write(responseBytes, 0, responseBytes.Length);
                         if (servicoAssociado == "Servico_A")
@@ -486,6 +486,753 @@ class Servidor
 
                         
                     }
+                    if (servicoAssociado == "Servico_B")
+                    {
+
+
+                        mut.WaitOne();
+                        try
+                        {
+                            List<Tarefa> tarefas = CarregarTarefasCSV("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico_B.csv");
+                            // Verificar o estado da tarefa associada ao ClienteID
+
+                            string estadoTarefa = VerificarEstadoTarefa(tarefas, clienteID);
+                            string ultimoEstado = null;
+                            Tarefa proximaTarefaNaoAlocada = null;
+
+                            //string data = null;
+                            //System.Text.Encoding.ASCII.GetString(bytes, 0, i);
+                            //byte[] msg = System.Text.Encoding.ASCII.GetBytes(data);
+                            //stream.Write(msg, 0, msg.Length);
+
+                            foreach (var tarefa in tarefas)
+                            {
+                                if (tarefa.ClienteID == clienteID)
+                                {
+                                    Console.WriteLine($"Tarefa {tarefa.TarefaID}: {tarefa.Descricao}, Estado: {tarefa.Estado}");
+                                    ultimoEstado = tarefa.Estado; // Atualizar o estado da ultima tarefa encontrada
+                                }
+
+                                if (tarefa.Estado == "Nao alocado" && proximaTarefaNaoAlocada == null)
+                                {
+                                    proximaTarefaNaoAlocada = tarefa; // Atualizar a próxima tarefa não alocada encontrada
+                                }
+
+                            }
+
+                            // Verificar se foi encontrada alguma tarefa associada ao ClienteID
+                            if (ultimoEstado != null)
+                            {
+                                enviaMsg = $"A última tarefa associada ao ClienteID '{clienteID}' possui o estado: {ultimoEstado}";
+                                responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                stream.Write(responseBytes, 0, responseBytes.Length);
+
+
+                                Console.WriteLine("");
+                                if (ultimoEstado == "Concluido")
+                                {
+                                    enviaMsg = "Pretende alocar uma nova tarefa? (Sim/Nao)";
+                                    responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                    stream.Write(responseBytes, 0, responseBytes.Length);
+
+                                    bytesReceived = stream.Read(dataReceive, 0, dataReceive.Length);
+                                    responseData = Encoding.ASCII.GetString(dataReceive, 0, bytesReceived);
+
+                                    i = 0;
+
+                                    while (i == 0)
+                                    {
+                                        // Se sim, verificar se existe uma próxima tarefa não alocada
+                                        if (responseData == "Sim")
+                                        {
+                                            if (proximaTarefaNaoAlocada != null)
+                                            {
+
+
+
+                                                // Alocar o cliente à próxima tarefa não alocada
+                                                proximaTarefaNaoAlocada.ClienteID = clienteID;
+                                                enviaMsg = $"ClienteID '{clienteID}' alocado à próxima tarefa não alocada '{proximaTarefaNaoAlocada.TarefaID}' - '{proximaTarefaNaoAlocada.Descricao}'.";
+                                                responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                stream.Write(responseBytes, 0, responseBytes.Length);
+
+                                                proximaTarefaNaoAlocada.Estado = "Em curso";
+                                                proximaTarefaNaoAlocada.ClienteID = clienteID;
+
+                                                AtualizarTarefas("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico_B.csv", tarefas);
+                                                i = 1;
+
+                                            }
+                                            else
+                                            {
+                                                enviaMsg = "Todas as tarefas se encontram alocadas.";
+                                                responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                stream.Write(responseBytes, 0, responseBytes.Length);
+                                                i = 1;
+                                            }
+                                            if (responseData == "Nao")
+                                            {
+                                                i = 1;
+                                                break;
+                                            }
+                                            else
+                                            {
+                                                enviaMsg = "Resposta Invalida!!!/nInsira novamente!";
+                                                responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                stream.Write(responseBytes, 0, responseBytes.Length);
+                                                bytesReceived = stream.Read(dataReceive, 0, dataReceive.Length);
+                                                responseData = Encoding.ASCII.GetString(dataReceive, 0, bytesReceived);
+                                            }
+
+                                        }
+                                    }
+                                }
+                                if (ultimoEstado == "Em curso")
+                                {
+                                    enviaMsg = "Terminou a tarefa? (Sim/Nao)";
+                                    responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                    stream.Write(responseBytes, 0, responseBytes.Length);
+
+                                    bytesReceived = stream.Read(dataReceive, 0, dataReceive.Length);
+                                    responseData = Encoding.ASCII.GetString(dataReceive, 0, bytesReceived);
+
+                                    i = 0;
+
+                                    while (i == 0)
+                                    {
+                                        // Se sim, verificar se existe uma próxima tarefa não alocada
+                                        if (responseData == "Sim")
+                                        {
+
+
+
+                                            enviaMsg = "Pretende alocar uma nova tarefa? (Sim/Nao)";
+                                            responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                            stream.Write(responseBytes, 0, responseBytes.Length);
+
+                                            bytesReceived = stream.Read(dataReceive, 0, dataReceive.Length);
+                                            responseData = Encoding.ASCII.GetString(dataReceive, 0, bytesReceived);
+
+                                            i = 0;
+                                            while (i == 0)
+                                                if (responseData == "Sim")
+                                                {
+
+
+                                                    if (proximaTarefaNaoAlocada != null)
+                                                    {
+
+
+
+                                                        // Alocar o cliente à próxima tarefa não alocada
+                                                        proximaTarefaNaoAlocada.ClienteID = clienteID;
+                                                        enviaMsg = $"ClienteID '{clienteID}' alocado à próxima tarefa não alocada '{proximaTarefaNaoAlocada.TarefaID}' - '{proximaTarefaNaoAlocada.Descricao}'.";
+                                                        responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                        stream.Write(responseBytes, 0, responseBytes.Length);
+
+                                                        proximaTarefaNaoAlocada.Estado = "Em curso";
+                                                        proximaTarefaNaoAlocada.ClienteID = clienteID;
+
+                                                        AtualizarTarefas("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico_B.csv", tarefas);
+                                                        i = 1;
+
+                                                    }
+                                                    else
+                                                    {
+                                                        enviaMsg = "Todas as tarefas se encontram alocadas.";
+                                                        responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                        stream.Write(responseBytes, 0, responseBytes.Length);
+                                                        i = 1;
+                                                    }
+                                                    if (responseData == "Nao")
+                                                    {
+                                                        i = 1;
+                                                        break;
+                                                    }
+                                                    else
+                                                    {
+                                                        enviaMsg = "Resposta Invalida!!!/nInsira novamente!";
+                                                        responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                        stream.Write(responseBytes, 0, responseBytes.Length);
+                                                        bytesReceived = stream.Read(dataReceive, 0, dataReceive.Length);
+                                                        responseData = Encoding.ASCII.GetString(dataReceive, 0, bytesReceived);
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    enviaMsg = "Não foi encontrada nenhuma tarefa associada ao ClienteID '{clienteID}'.";
+                                                    responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                    stream.Write(responseBytes, 0, responseBytes.Length);
+
+                                                    enviaMsg = "Pretende alocar uma nova tarefa? (Sim/Nao)";
+                                                    responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                    stream.Write(responseBytes, 0, responseBytes.Length);
+
+                                                    bytesReceived = stream.Read(dataReceive, 0, dataReceive.Length);
+                                                    responseData = Encoding.ASCII.GetString(dataReceive, 0, bytesReceived);
+
+                                                    i = 0;
+
+                                                    while (i == 0)
+                                                    {
+                                                        // Se sim, verificar se existe uma próxima tarefa não alocada
+                                                        if (responseData == "Sim")
+                                                        {
+                                                            if (proximaTarefaNaoAlocada != null)
+                                                            {
+
+
+
+                                                                // Alocar o cliente à próxima tarefa não alocada
+                                                                proximaTarefaNaoAlocada.ClienteID = clienteID;
+                                                                enviaMsg = $"ClienteID '{clienteID}' alocado à próxima tarefa não alocada '{proximaTarefaNaoAlocada.TarefaID}' - '{proximaTarefaNaoAlocada.Descricao}'.";
+                                                                responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                                stream.Write(responseBytes, 0, responseBytes.Length);
+
+                                                                proximaTarefaNaoAlocada.Estado = "Em curso";
+                                                                proximaTarefaNaoAlocada.ClienteID = clienteID;
+
+                                                                AtualizarTarefas("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico_B.csv", tarefas);
+                                                                i = 1;
+
+                                                            }
+                                                            else
+                                                            {
+                                                                enviaMsg = "Todas as tarefas se encontram alocadas.";
+                                                                responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                                stream.Write(responseBytes, 0, responseBytes.Length);
+                                                                i = 1;
+                                                            }
+                                                            if (responseData == "Nao")
+                                                            {
+                                                                i = 1;
+                                                                break;
+                                                            }
+                                                            else
+                                                            {
+                                                                enviaMsg = "Resposta Invalida!!!/nInsira novamente!";
+                                                                responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                                stream.Write(responseBytes, 0, responseBytes.Length);
+                                                                bytesReceived = stream.Read(dataReceive, 0, dataReceive.Length);
+                                                                responseData = Encoding.ASCII.GetString(dataReceive, 0, bytesReceived);
+                                                            }
+
+                                                        }
+                                                    }
+
+                                                }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            Console.WriteLine("{0} is leaving the protected area", Thread.CurrentThread.Name);
+
+                            // Release the Mutex.
+                            mut.ReleaseMutex();
+                            Console.WriteLine("{0} has released the mutex", Thread.CurrentThread.Name);
+                        }
+                    }
+                    if (servicoAssociado == "Servico_C")
+                    {
+
+
+                        mut.WaitOne();
+                        try
+                        {
+                            List<Tarefa> tarefas = CarregarTarefasCSV("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico_C.csv");
+                            // Verificar o estado da tarefa associada ao ClienteID
+
+                            string estadoTarefa = VerificarEstadoTarefa(tarefas, clienteID);
+                            string ultimoEstado = null;
+                            Tarefa proximaTarefaNaoAlocada = null;
+
+                            //string data = null;
+                            //System.Text.Encoding.ASCII.GetString(bytes, 0, i);
+                            //byte[] msg = System.Text.Encoding.ASCII.GetBytes(data);
+                            //stream.Write(msg, 0, msg.Length);
+
+                            foreach (var tarefa in tarefas)
+                            {
+                                if (tarefa.ClienteID == clienteID)
+                                {
+                                    Console.WriteLine($"Tarefa {tarefa.TarefaID}: {tarefa.Descricao}, Estado: {tarefa.Estado}");
+                                    ultimoEstado = tarefa.Estado; // Atualizar o estado da ultima tarefa encontrada
+                                }
+
+                                if (tarefa.Estado == "Nao alocado" && proximaTarefaNaoAlocada == null)
+                                {
+                                    proximaTarefaNaoAlocada = tarefa; // Atualizar a próxima tarefa não alocada encontrada
+                                }
+
+                            }
+
+                            // Verificar se foi encontrada alguma tarefa associada ao ClienteID
+                            if (ultimoEstado != null)
+                            {
+                                enviaMsg = $"A última tarefa associada ao ClienteID '{clienteID}' possui o estado: {ultimoEstado}";
+                                responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                stream.Write(responseBytes, 0, responseBytes.Length);
+
+
+                                Console.WriteLine("");
+                                if (ultimoEstado == "Concluido")
+                                {
+                                    enviaMsg = "Pretende alocar uma nova tarefa? (Sim/Nao)";
+                                    responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                    stream.Write(responseBytes, 0, responseBytes.Length);
+
+                                    bytesReceived = stream.Read(dataReceive, 0, dataReceive.Length);
+                                    responseData = Encoding.ASCII.GetString(dataReceive, 0, bytesReceived);
+
+                                    i = 0;
+
+                                    while (i == 0)
+                                    {
+                                        // Se sim, verificar se existe uma próxima tarefa não alocada
+                                        if (responseData == "Sim")
+                                        {
+                                            if (proximaTarefaNaoAlocada != null)
+                                            {
+
+
+
+                                                // Alocar o cliente à próxima tarefa não alocada
+                                                proximaTarefaNaoAlocada.ClienteID = clienteID;
+                                                enviaMsg = $"ClienteID '{clienteID}' alocado à próxima tarefa não alocada '{proximaTarefaNaoAlocada.TarefaID}' - '{proximaTarefaNaoAlocada.Descricao}'.";
+                                                responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                stream.Write(responseBytes, 0, responseBytes.Length);
+
+                                                proximaTarefaNaoAlocada.Estado = "Em curso";
+                                                proximaTarefaNaoAlocada.ClienteID = clienteID;
+
+                                                AtualizarTarefas("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico_C.csv", tarefas);
+                                                i = 1;
+
+                                            }
+                                            else
+                                            {
+                                                enviaMsg = "Todas as tarefas se encontram alocadas.";
+                                                responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                stream.Write(responseBytes, 0, responseBytes.Length);
+                                                i = 1;
+                                            }
+                                            if (responseData == "Nao")
+                                            {
+                                                i = 1;
+                                                break;
+                                            }
+                                            else
+                                            {
+                                                enviaMsg = "Resposta Invalida!!!/nInsira novamente!";
+                                                responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                stream.Write(responseBytes, 0, responseBytes.Length);
+                                                bytesReceived = stream.Read(dataReceive, 0, dataReceive.Length);
+                                                responseData = Encoding.ASCII.GetString(dataReceive, 0, bytesReceived);
+                                            }
+
+                                        }
+                                    }
+                                }
+                                if (ultimoEstado == "Em curso")
+                                {
+                                    enviaMsg = "Terminou a tarefa? (Sim/Nao)";
+                                    responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                    stream.Write(responseBytes, 0, responseBytes.Length);
+
+                                    bytesReceived = stream.Read(dataReceive, 0, dataReceive.Length);
+                                    responseData = Encoding.ASCII.GetString(dataReceive, 0, bytesReceived);
+
+                                    i = 0;
+
+                                    while (i == 0)
+                                    {
+                                        // Se sim, verificar se existe uma próxima tarefa não alocada
+                                        if (responseData == "Sim")
+                                        {
+
+
+
+                                            enviaMsg = "Pretende alocar uma nova tarefa? (Sim/Nao)";
+                                            responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                            stream.Write(responseBytes, 0, responseBytes.Length);
+
+                                            bytesReceived = stream.Read(dataReceive, 0, dataReceive.Length);
+                                            responseData = Encoding.ASCII.GetString(dataReceive, 0, bytesReceived);
+
+                                            i = 0;
+                                            while (i == 0)
+                                                if (responseData == "Sim")
+                                                {
+
+
+                                                    if (proximaTarefaNaoAlocada != null)
+                                                    {
+
+
+
+                                                        // Alocar o cliente à próxima tarefa não alocada
+                                                        proximaTarefaNaoAlocada.ClienteID = clienteID;
+                                                        enviaMsg = $"ClienteID '{clienteID}' alocado à próxima tarefa não alocada '{proximaTarefaNaoAlocada.TarefaID}' - '{proximaTarefaNaoAlocada.Descricao}'.";
+                                                        responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                        stream.Write(responseBytes, 0, responseBytes.Length);
+
+                                                        proximaTarefaNaoAlocada.Estado = "Em curso";
+                                                        proximaTarefaNaoAlocada.ClienteID = clienteID;
+
+                                                        AtualizarTarefas("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico_C.csv", tarefas);
+                                                        i = 1;
+
+                                                    }
+                                                    else
+                                                    {
+                                                        enviaMsg = "Todas as tarefas se encontram alocadas.";
+                                                        responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                        stream.Write(responseBytes, 0, responseBytes.Length);
+                                                        i = 1;
+                                                    }
+                                                    if (responseData == "Nao")
+                                                    {
+                                                        i = 1;
+                                                        break;
+                                                    }
+                                                    else
+                                                    {
+                                                        enviaMsg = "Resposta Invalida!!!/nInsira novamente!";
+                                                        responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                        stream.Write(responseBytes, 0, responseBytes.Length);
+                                                        bytesReceived = stream.Read(dataReceive, 0, dataReceive.Length);
+                                                        responseData = Encoding.ASCII.GetString(dataReceive, 0, bytesReceived);
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    enviaMsg = "Não foi encontrada nenhuma tarefa associada ao ClienteID '{clienteID}'.";
+                                                    responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                    stream.Write(responseBytes, 0, responseBytes.Length);
+
+                                                    enviaMsg = "Pretende alocar uma nova tarefa? (Sim/Nao)";
+                                                    responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                    stream.Write(responseBytes, 0, responseBytes.Length);
+
+                                                    bytesReceived = stream.Read(dataReceive, 0, dataReceive.Length);
+                                                    responseData = Encoding.ASCII.GetString(dataReceive, 0, bytesReceived);
+
+                                                    i = 0;
+
+                                                    while (i == 0)
+                                                    {
+                                                        // Se sim, verificar se existe uma próxima tarefa não alocada
+                                                        if (responseData == "Sim")
+                                                        {
+                                                            if (proximaTarefaNaoAlocada != null)
+                                                            {
+
+
+
+                                                                // Alocar o cliente à próxima tarefa não alocada
+                                                                proximaTarefaNaoAlocada.ClienteID = clienteID;
+                                                                enviaMsg = $"ClienteID '{clienteID}' alocado à próxima tarefa não alocada '{proximaTarefaNaoAlocada.TarefaID}' - '{proximaTarefaNaoAlocada.Descricao}'.";
+                                                                responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                                stream.Write(responseBytes, 0, responseBytes.Length);
+
+                                                                proximaTarefaNaoAlocada.Estado = "Em curso";
+                                                                proximaTarefaNaoAlocada.ClienteID = clienteID;
+
+                                                                AtualizarTarefas("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico_C.csv", tarefas);
+                                                                i = 1;
+
+                                                            }
+                                                            else
+                                                            {
+                                                                enviaMsg = "Todas as tarefas se encontram alocadas.";
+                                                                responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                                stream.Write(responseBytes, 0, responseBytes.Length);
+                                                                i = 1;
+                                                            }
+                                                            if (responseData == "Nao")
+                                                            {
+                                                                i = 1;
+                                                                break;
+                                                            }
+                                                            else
+                                                            {
+                                                                enviaMsg = "Resposta Invalida!!!/nInsira novamente!";
+                                                                responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                                stream.Write(responseBytes, 0, responseBytes.Length);
+                                                                bytesReceived = stream.Read(dataReceive, 0, dataReceive.Length);
+                                                                responseData = Encoding.ASCII.GetString(dataReceive, 0, bytesReceived);
+                                                            }
+
+                                                        }
+                                                    }
+
+                                                }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            Console.WriteLine("{0} is leaving the protected area", Thread.CurrentThread.Name);
+
+                            // Release the Mutex.
+                            mut.ReleaseMutex();
+                            Console.WriteLine("{0} has released the mutex", Thread.CurrentThread.Name);
+                        }
+                    }
+                    if (servicoAssociado == "Servico_D")
+                    {
+
+
+                        mut.WaitOne();
+                        try
+                        {
+                            List<Tarefa> tarefas = CarregarTarefasCSV("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico_D.csv");
+                            // Verificar o estado da tarefa associada ao ClienteID
+
+                            string estadoTarefa = VerificarEstadoTarefa(tarefas, clienteID);
+                            string ultimoEstado = null;
+                            Tarefa proximaTarefaNaoAlocada = null;
+
+                            //string data = null;
+                            //System.Text.Encoding.ASCII.GetString(bytes, 0, i);
+                            //byte[] msg = System.Text.Encoding.ASCII.GetBytes(data);
+                            //stream.Write(msg, 0, msg.Length);
+
+                            foreach (var tarefa in tarefas)
+                            {
+                                if (tarefa.ClienteID == clienteID)
+                                {
+                                    Console.WriteLine($"Tarefa {tarefa.TarefaID}: {tarefa.Descricao}, Estado: {tarefa.Estado}");
+                                    ultimoEstado = tarefa.Estado; // Atualizar o estado da ultima tarefa encontrada
+                                }
+
+                                if (tarefa.Estado == "Nao alocado" && proximaTarefaNaoAlocada == null)
+                                {
+                                    proximaTarefaNaoAlocada = tarefa; // Atualizar a próxima tarefa não alocada encontrada
+                                }
+
+                            }
+
+                            // Verificar se foi encontrada alguma tarefa associada ao ClienteID
+                            if (ultimoEstado != null)
+                            {
+                                enviaMsg = $"A última tarefa associada ao ClienteID '{clienteID}' possui o estado: {ultimoEstado}";
+                                responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                stream.Write(responseBytes, 0, responseBytes.Length);
+
+
+                                Console.WriteLine("");
+                                if (ultimoEstado == "Concluido")
+                                {
+                                    enviaMsg = "Pretende alocar uma nova tarefa? (Sim/Nao)";
+                                    responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                    stream.Write(responseBytes, 0, responseBytes.Length);
+
+                                    bytesReceived = stream.Read(dataReceive, 0, dataReceive.Length);
+                                    responseData = Encoding.ASCII.GetString(dataReceive, 0, bytesReceived);
+
+                                    i = 0;
+
+                                    while (i == 0)
+                                    {
+                                        // Se sim, verificar se existe uma próxima tarefa não alocada
+                                        if (responseData == "Sim")
+                                        {
+                                            if (proximaTarefaNaoAlocada != null)
+                                            {
+
+
+
+                                                // Alocar o cliente à próxima tarefa não alocada
+                                                proximaTarefaNaoAlocada.ClienteID = clienteID;
+                                                enviaMsg = $"ClienteID '{clienteID}' alocado à próxima tarefa não alocada '{proximaTarefaNaoAlocada.TarefaID}' - '{proximaTarefaNaoAlocada.Descricao}'.";
+                                                responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                stream.Write(responseBytes, 0, responseBytes.Length);
+
+                                                proximaTarefaNaoAlocada.Estado = "Em curso";
+                                                proximaTarefaNaoAlocada.ClienteID = clienteID;
+
+                                                AtualizarTarefas("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico_D.csv", tarefas);
+                                                i = 1;
+
+                                            }
+                                            else
+                                            {
+                                                enviaMsg = "Todas as tarefas se encontram alocadas.";
+                                                responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                stream.Write(responseBytes, 0, responseBytes.Length);
+                                                i = 1;
+                                            }
+                                            if (responseData == "Nao")
+                                            {
+                                                i = 1;
+                                                break;
+                                            }
+                                            else
+                                            {
+                                                enviaMsg = "Resposta Invalida!!!/nInsira novamente!";
+                                                responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                stream.Write(responseBytes, 0, responseBytes.Length);
+                                                bytesReceived = stream.Read(dataReceive, 0, dataReceive.Length);
+                                                responseData = Encoding.ASCII.GetString(dataReceive, 0, bytesReceived);
+                                            }
+
+                                        }
+                                    }
+                                }
+                                if (ultimoEstado == "Em curso")
+                                {
+                                    enviaMsg = "Terminou a tarefa? (Sim/Nao)";
+                                    responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                    stream.Write(responseBytes, 0, responseBytes.Length);
+
+                                    bytesReceived = stream.Read(dataReceive, 0, dataReceive.Length);
+                                    responseData = Encoding.ASCII.GetString(dataReceive, 0, bytesReceived);
+
+                                    i = 0;
+
+                                    while (i == 0)
+                                    {
+                                        // Se sim, verificar se existe uma próxima tarefa não alocada
+                                        if (responseData == "Sim")
+                                        {
+
+
+
+                                            enviaMsg = "Pretende alocar uma nova tarefa? (Sim/Nao)";
+                                            responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                            stream.Write(responseBytes, 0, responseBytes.Length);
+
+                                            bytesReceived = stream.Read(dataReceive, 0, dataReceive.Length);
+                                            responseData = Encoding.ASCII.GetString(dataReceive, 0, bytesReceived);
+
+                                            i = 0;
+                                            while (i == 0)
+                                                if (responseData == "Sim")
+                                                {
+
+
+                                                    if (proximaTarefaNaoAlocada != null)
+                                                    {
+
+
+
+                                                        // Alocar o cliente à próxima tarefa não alocada
+                                                        proximaTarefaNaoAlocada.ClienteID = clienteID;
+                                                        enviaMsg = $"ClienteID '{clienteID}' alocado à próxima tarefa não alocada '{proximaTarefaNaoAlocada.TarefaID}' - '{proximaTarefaNaoAlocada.Descricao}'.";
+                                                        responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                        stream.Write(responseBytes, 0, responseBytes.Length);
+
+                                                        proximaTarefaNaoAlocada.Estado = "Em curso";
+                                                        proximaTarefaNaoAlocada.ClienteID = clienteID;
+
+                                                        AtualizarTarefas("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico_D.csv", tarefas);
+                                                        i = 1;
+
+                                                    }
+                                                    else
+                                                    {
+                                                        enviaMsg = "Todas as tarefas se encontram alocadas.";
+                                                        responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                        stream.Write(responseBytes, 0, responseBytes.Length);
+                                                        i = 1;
+                                                    }
+                                                    if (responseData == "Nao")
+                                                    {
+                                                        i = 1;
+                                                        break;
+                                                    }
+                                                    else
+                                                    {
+                                                        enviaMsg = "Resposta Invalida!!!/nInsira novamente!";
+                                                        responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                        stream.Write(responseBytes, 0, responseBytes.Length);
+                                                        bytesReceived = stream.Read(dataReceive, 0, dataReceive.Length);
+                                                        responseData = Encoding.ASCII.GetString(dataReceive, 0, bytesReceived);
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    enviaMsg = "Não foi encontrada nenhuma tarefa associada ao ClienteID '{clienteID}'.";
+                                                    responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                    stream.Write(responseBytes, 0, responseBytes.Length);
+
+                                                    enviaMsg = "Pretende alocar uma nova tarefa? (Sim/Nao)";
+                                                    responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                    stream.Write(responseBytes, 0, responseBytes.Length);
+
+                                                    bytesReceived = stream.Read(dataReceive, 0, dataReceive.Length);
+                                                    responseData = Encoding.ASCII.GetString(dataReceive, 0, bytesReceived);
+
+                                                    i = 0;
+
+                                                    while (i == 0)
+                                                    {
+                                                        // Se sim, verificar se existe uma próxima tarefa não alocada
+                                                        if (responseData == "Sim")
+                                                        {
+                                                            if (proximaTarefaNaoAlocada != null)
+                                                            {
+
+
+
+                                                                // Alocar o cliente à próxima tarefa não alocada
+                                                                proximaTarefaNaoAlocada.ClienteID = clienteID;
+                                                                enviaMsg = $"ClienteID '{clienteID}' alocado à próxima tarefa não alocada '{proximaTarefaNaoAlocada.TarefaID}' - '{proximaTarefaNaoAlocada.Descricao}'.";
+                                                                responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                                stream.Write(responseBytes, 0, responseBytes.Length);
+
+                                                                proximaTarefaNaoAlocada.Estado = "Em curso";
+                                                                proximaTarefaNaoAlocada.ClienteID = clienteID;
+
+                                                                AtualizarTarefas("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico_D.csv", tarefas);
+                                                                i = 1;
+
+                                                            }
+                                                            else
+                                                            {
+                                                                enviaMsg = "Todas as tarefas se encontram alocadas.";
+                                                                responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                                stream.Write(responseBytes, 0, responseBytes.Length);
+                                                                i = 1;
+                                                            }
+                                                            if (responseData == "Nao")
+                                                            {
+                                                                i = 1;
+                                                                break;
+                                                            }
+                                                            else
+                                                            {
+                                                                enviaMsg = "Resposta Invalida!!!/nInsira novamente!";
+                                                                responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
+                                                                stream.Write(responseBytes, 0, responseBytes.Length);
+                                                                bytesReceived = stream.Read(dataReceive, 0, dataReceive.Length);
+                                                                responseData = Encoding.ASCII.GetString(dataReceive, 0, bytesReceived);
+                                                            }
+
+                                                        }
+                                                    }
+
+                                                }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            Console.WriteLine("{0} is leaving the protected area", Thread.CurrentThread.Name);
+
+                            // Release the Mutex.
+                            mut.ReleaseMutex();
+                            Console.WriteLine("{0} has released the mutex", Thread.CurrentThread.Name);
+                        }
+                    }
 
 
 
@@ -497,9 +1244,6 @@ class Servidor
 
 
 
-
-
-                    
 
 
 
@@ -618,13 +1362,13 @@ class Servidor
             // Abre o arquivo CSV no modo de acrescentar
             using (StreamWriter writer = new StreamWriter(filePath, true))
             {
-                // Escreve o novo ID no arquivo CSV com o serviço associado
+                // Escreve o novo ID no arquivo CSV com o servico associado
                 writer.WriteLine($"{servicoMenosIDs},{novoID}");
             }
         }
         finally
         {
-            // Libera o mutex após a conclusão da operação
+            // Libera o mutex após a conclusão da operacão
             mut.ReleaseMutex();
         }
     }
