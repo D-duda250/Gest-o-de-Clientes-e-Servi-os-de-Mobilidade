@@ -59,7 +59,12 @@ class Servidor
         }
     }
 
-        static void ThreadProc()
+    static string GetFilePath(string servicoID)
+    {
+        string baseDirectory = @"C:\Users\Duarte Oliveira\source\repos\SDTP1\SDTP1"; // Ensure this is the base directory only
+        return Path.Combine(baseDirectory, $"{servicoID}");
+    }
+    static void ThreadProc()
         {
             for (int i = 0; i < numIterations; i++)
             {
@@ -98,7 +103,7 @@ class Servidor
             string data = null;
             //string data2 = null;
 
-            string enviaMsg = null;
+            string enviaMsg = "mensagem inicial";
             byte[] responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
 
 
@@ -136,7 +141,7 @@ class Servidor
 
                     byte[] msg = System.Text.Encoding.ASCII.GetBytes(data);
 
-                    List<ClienteServicoAssociation> associations = CarregarAssociacoesCSV("C:\\Users\\Octav\\Source\\Repos\\SDTP1\\SDTP1\\Servico.csv");
+                    List<ClienteServicoAssociation> associations = CarregarAssociacoesCSV("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico.csv");
 
                     string clienteID = data;
 
@@ -205,7 +210,7 @@ class Servidor
                         // Adiciona o novo ID ao serviço com o menor número de IDs associados
                         if (servicoMenosIDs != null)
                         {
-                            AdicionarNovoID("C:\\Users\\Octav\\Source\\Repos\\SDTP1\\SDTP1\\Servidor.cs", servicoMenosIDs, totalIDs);
+                            AdicionarNovoID("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servidor.cs", servicoMenosIDs, totalIDs);
                             enviaMsg = $"O ClienteID '{totalIDs}' está associado ao Serviço '{servicoMenosIDs}'.";
                             responseBytes = Encoding.ASCII.GetBytes(enviaMsg);
                             stream.Write(responseBytes, 0, responseBytes.Length);
@@ -236,7 +241,7 @@ class Servidor
                             mut.WaitOne();
                             try
                             {
-                                List<Tarefa> tarefas = CarregarTarefasCSV("C:\\Users\\Octav\\Source\\Repos\\SDTP1\\SDTP1\\Servico_A.csv");
+                                List<Tarefa> tarefas = CarregarTarefasCSV("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico_A.csv");
                                 // Verificar o estado da tarefa associada ao ClienteID
 
                                 string estadoTarefa = VerificarEstadoTarefa(tarefas, clienteID);
@@ -302,7 +307,7 @@ class Servidor
                                                     proximaTarefaNaoAlocada.Estado = "Em curso";
                                                     proximaTarefaNaoAlocada.ClienteID = clienteID;
 
-                                                    AtualizarTarefas("C:\\Users\\Octav\\Source\\Repos\\SDTP1\\SDTP1\\Servico_A.csv", tarefas);
+                                                    AtualizarTarefas("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico_A.csv", tarefas);
                                                     i = 1;
 
                                                 }
@@ -376,7 +381,7 @@ class Servidor
                                                             proximaTarefaNaoAlocada.Estado = "Em curso";
                                                             proximaTarefaNaoAlocada.ClienteID = clienteID;
 
-                                                            AtualizarTarefas("C:\\Users\\Octav\\Source\\Repos\\SDTP1\\SDTP1\\Servico_A.csv", tarefas);
+                                                            AtualizarTarefas("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico_A.csv", tarefas);
                                                             i = 1;
 
                                                         }
@@ -435,7 +440,7 @@ class Servidor
                                                                     proximaTarefaNaoAlocada.Estado = "Em curso";
                                                                     proximaTarefaNaoAlocada.ClienteID = clienteID;
 
-                                                                    AtualizarTarefas("C:\\Users\\Octav\\Source\\Repos\\SDTP1\\SDTP1\\Servico_A.csv", tarefas);
+                                                                    AtualizarTarefas("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico_A.csv", tarefas);
                                                                     i = 1;
 
                                                                 }
@@ -561,8 +566,9 @@ class Servidor
 
 
 
-    static List<Tarefa> CarregarTarefasCSV(string filePath)
+    static List<Tarefa> CarregarTarefasCSV(string servicoID)
     {
+        string filePath = GetFilePath(servicoID);
         List<Tarefa> tarefas = new List<Tarefa>();
         using (StreamReader reader = new StreamReader(filePath))
         {
@@ -572,11 +578,7 @@ class Servidor
                 string[] parts = line.Split(',');
                 if (parts.Length >= 4)
                 {
-                    string tarefaID = parts[0].Trim();
-                    string descricao = parts[1].Trim();
-                    string estado = parts[2].Trim();
-                    string clienteID = parts[3].Trim();
-                    tarefas.Add(new Tarefa(tarefaID, descricao, estado, clienteID));
+                    tarefas.Add(new Tarefa(parts[0].Trim(), parts[1].Trim(), parts[2].Trim(), parts[3].Trim()));
                 }
             }
         }
@@ -593,23 +595,17 @@ class Servidor
 
 
 
-    static void AtualizarTarefas(string filePath, List<Tarefa> tarefas)
+    static void AtualizarTarefas(string servicoID, List<Tarefa> tarefas)
     {
-            
-        
-            // Criar um novo arquivo CSV ou sobrescrever o existente com as tarefas atualizadas
-            using (StreamWriter writer = new StreamWriter(filePath))
+        string filePath = GetFilePath(servicoID);
+        using (StreamWriter writer = new StreamWriter(filePath))
+        {
+            writer.WriteLine("TarefaID,Descricao,Estado,ClienteID");
+            foreach (var tarefa in tarefas)
             {
-                // Escrever o cabeçalho do arquivo CSV
-                writer.WriteLine("TarefaID,Descricao,Estado,ClienteID");
-
-                // Escrever cada tarefa no arquivo CSV no formato "TarefaID,Descricao,Estado,ClienteID"
-                foreach (var tarefa in tarefas)
-                {
-                    writer.WriteLine($"{tarefa.TarefaID},{tarefa.Descricao},{tarefa.Estado},{tarefa.ClienteID}");
-                }
+                writer.WriteLine($"{tarefa.TarefaID},{tarefa.Descricao},{tarefa.Estado},{tarefa.ClienteID}");
             }
-        
+        }
     }
 
 
