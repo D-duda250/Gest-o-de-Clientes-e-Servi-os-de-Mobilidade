@@ -1,12 +1,12 @@
 ClienteID,ServicoID
-Cl_0001,Servico_A
-Cl_0002,Servico_A
-Cl_0003,Servico_A
-Cl_0004,Servico_B
-Cl_0005,Servico_B
-Cl_0006,Servico_C
-Cl_0007,Servico_B
-Cl_0008,Servico_D
-Cl_0009,Servico_A
+1,Servico_A
+2,Servico_A
+3,Servico_A
+4,Servico_A
+5,Servico_B
+6,Servico_C
+7,Servico_B
+8,Servico_D
+9,Servico_A
 
 

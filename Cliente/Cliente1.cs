@@ -18,81 +18,52 @@ class Cliente
         Console.Write("Qual e o seu ID?\n");
         //Console.Write("   ");
         ID = Console.ReadLine();
+        string msg = null;
 
         Connect("127.0.0.1", ID);
-        static void Connect(String server, String ID)
+        static void Connect(string server, string ID)
         {
             try
             {
-                // Create a TcpClient.
-                // Note, for this client to work you need to have a TcpServer
-                // connected to the same address as specified by the server, port
-                // combination.
-                Int32 port = 13000;
+                int port = 13000;
 
-                // Prefer a using declaration to ensure the instance is Disposed later.
                 using TcpClient client = new TcpClient(server, port);
-
-                // Translate the passed message into ASCII and store it as a Byte array.
-                Byte[] bytes = System.Text.Encoding.ASCII.GetBytes(ID);
-
-                String data = null;
-                // Get a client stream for reading and writing.
                 NetworkStream stream = client.GetStream();
 
+                byte[] data = Encoding.ASCII.GetBytes(ID);
 
-                // Send the message to the connected TcpServer.
-                //stream.Write(data, 0, data.Length);
-                //Console.WriteLine("Sent: {0}", ID);
+                // Envie o ID para o servidor
+                stream.Write(data, 0, data.Length);
+                //Console.WriteLine("Mensagem enviada: {0}", ID);
 
-
-                // Byte[] bytes = new Byte[256];
-               
-               
-
-                int i;
-
-                // Loop to receive all the data sent by the server.
-                while ((i = stream.Read(bytes, 0, bytes.Length)) != 0)
+                // Loop para receber e processar as mensagens do servidor
+                while (true)
                 {
-                    // Translate data bytes to a ASCII string.
-                    data = System.Text.Encoding.ASCII.GetString(bytes, 0, i);
-                    Console.WriteLine("Received: {0}", data);
+                    data = new byte[1024];
+                    int bytesReceived = stream.Read(data, 0, data.Length);
+                    string respostaData = Encoding.ASCII.GetString(data, 0, bytesReceived);
 
-                    // Process the data sent by the client.
-                    
-                    byte[] msg = System.Text.Encoding.ASCII.GetBytes(data);
 
-                    // Send back a response.
-                    stream.Write(msg, 0, msg.Length);
-                    Console.WriteLine("{0}", data);
+                    // Verifique se a mensagem recebida é "400 OK"
+                    if (respostaData.Trim() == "400 BYE")
+                    {
+                        Console.WriteLine("BYE. Encerrando a conexão.");
+                        break; // Saia do loop
+                    }
 
-                    //stream.Write(msg, 0, msg.Length);
-                    //Console.WriteLine("Já terminou a tarefa?", data);
+                    // Se não for "400 OK", envie outra mensagem (se necessário)
+                    // Aqui você pode adicionar lógica para enviar mensagens adicionais se desejado
+                    Console.WriteLine("{0}", respostaData);
+                    string respostaMsg = Console.ReadLine();
+                    byte[] responseBytes = Encoding.ASCII.GetBytes(respostaMsg);
+                    stream.Write(responseBytes, 0, responseBytes.Length);
+
 
                 }
-                // Receive the server response.
 
-                // Buffer to store the response bytes.
-                //data = new Byte[256];
-
-                //// String to store the response ASCII representation.
-                //String responseData = String.Empty;
-
-                //// Read the first batch of the TcpServer response bytes.
-                //Int32 bytes = stream.Read(data, 0, data.Length);
-                //responseData = System.Text.Encoding.ASCII.GetString(data, 0, bytes);
-                //Console.WriteLine("Received: {0}", responseData);
-
-
-                //Int32 bytes = stream.Read(data, 0, data.Length);
-                //responseData = System.Text.Encoding.ASCII.GetString(data, 0, bytes);
-                //Console.WriteLine("{0}", responseData);
-
-                // Explicit close is not necessary since TcpClient.Dispose() will be
-                // called automatically.
-                // stream.Close();
-                // client.Close();
+                // Feche o stream e o cliente após terminar de enviar e receber mensagens
+                stream.Close();
+                client.Close();
             }
             catch (ArgumentNullException e)
             {
@@ -103,8 +74,9 @@ class Cliente
                 Console.WriteLine("SocketException: {0}", e);
             }
 
-            Console.WriteLine("\n Press Enter to continue...");
+            Console.WriteLine("\nPressione Enter para continuar...");
             Console.Read();
         }
     }
 }
+
