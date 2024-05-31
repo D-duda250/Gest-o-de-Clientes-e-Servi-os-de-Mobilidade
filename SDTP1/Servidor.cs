@@ -20,30 +20,6 @@ class Servidor
     private const int numThreads = 3;
 
 
-    //Servico.Csv
-
-    //[Name("ServicoId")]
-    //public string ServicoID { get; set; }
-
-
-
-    //Servico_A
-    //TarefaID,Descricao,Estado,ClienteID
-
-    //[Name("TarefaID")]
-    //public string TarefaID { get; set; }
-
-
-    //[Name("Descricao")]
-    //public string Descricao { get; set; }
-
-
-    //[Name("Estado")]
-    //public string Estado { get; set; }
-
-
-    //[Name("ClienteID")]
-    //public string ClienteID { get; set; }
 
 
     static void Main(string[] args)
@@ -206,7 +182,7 @@ class Servidor
                             menorNumeroIDs = sD;
                             servicoMenosIDs = "Servico_D";
                         }
-                        int totalIDs = sA + sB + sC + sD+1;
+                        int totalIDs = sA + sB + sC + sD + 1;
                         // Adiciona o novo ID ao servico com o menor número de IDs associados
                         if (servicoMenosIDs != null)
                         {
@@ -1237,16 +1213,6 @@ class Servidor
 
 
 
-
-
-
-
-
-
-
-
-
-
                 }
             }
         }
@@ -1273,10 +1239,7 @@ class Servidor
 
 
 
-    static void ServicoA(string clienteID)
-    {
-        
-    }
+   
 
 
     static List<ClienteServicoAssociation> CarregarAssociacoesCSV(string filePath)

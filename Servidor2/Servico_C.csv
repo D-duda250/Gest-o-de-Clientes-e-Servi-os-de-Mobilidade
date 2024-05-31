@@ -1,0 +1,7 @@
+TarefaID,Descricao,Estado,ClienteID
+TarefaID,Descricao,Estado,ClienteID
+SA_T1,Entrega Temu porta 410,Concluido,6
+SA_T2,Entrega cartas porta 115,Em curso,7
+SA_T3,Pequena encomenda Utad,Concluido,8
+SA_T4,Rota de entrega 2,Em curso,9
+SA_T5,Rota de entrega 1,Em curso,9
