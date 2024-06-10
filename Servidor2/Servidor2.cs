@@ -88,9 +88,28 @@ class Servidor
                 return HandleAlocarRequest(clientID);
             case "Desassociar":
                 return HandleDesassociar(clientID, parts.Length > 2 && parts[2] == "Sim");
+            case "Admin":
+                return HandleAdminAuthentication(clientID, parts.Length > 2 ? parts[2] : null);
+            case "CriarTarefa":
+                if (IsAdmin(clientID))
+                {
+                    return HandleCriarTarefa(parts);
+                }
+                return "Permissão negada.";
+            case "CriarCliente":
+                if (IsAdmin(clientID))
+                {
+                    return HandleCriarCliente(parts);
+                }
+                return "Permissão negada.";
             default:
                 return "Comando não reconhecido.";
         }
+    }
+
+    static bool IsAdmin(string clientID)
+    {
+        return clientID.StartsWith("A");
     }
 
     static string HandleClientID(string clientID)
@@ -197,6 +216,60 @@ class Servidor
         // Remover o cliente da lista de associações
         RemoverID("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico.csv", clienteID);
         return $"O ClienteID '{clienteID}' foi desassociado do serviço '{servicoAssociado}'.";
+    }
+
+    static string HandleCriarTarefa(string[] parts)
+    {
+        if (parts.Length < 5)
+        {
+            return "Formato da mensagem inválido. Use: CriarTarefa:<servicoID>:<tarefaID>:<descricao>";
+        }
+
+        string servicoID = parts[1];
+        string tarefaID = parts[2];
+        string descricao = parts[3];
+        string estado = "Nao alocado";
+        string clienteID = "";
+
+        string filePath = GetFilePath(servicoID);
+        using (StreamWriter writer = new StreamWriter(filePath, true))
+        {
+            writer.WriteLine($"{tarefaID},{descricao},{estado},{clienteID}");
+        }
+
+        return $"Tarefa '{tarefaID}' criada com sucesso no serviço '{servicoID}'.";
+    }
+
+    static string HandleCriarCliente(string[] parts)
+    {
+        if (parts.Length < 3)
+        {
+            return "Formato da mensagem inválido. Use: CriarCliente:<clientID>:<servicoID>";
+        }
+
+        string clientID = parts[1];
+        string servicoID = parts[2];
+
+        string filePath = "C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico.csv";
+        using (StreamWriter writer = new StreamWriter(filePath, true))
+        {
+            writer.WriteLine($"{clientID},{servicoID}");
+        }
+
+        return $"Cliente '{clientID}' criado com sucesso no serviço '{servicoID}'.";
+    }
+
+    static string HandleAdminAuthentication(string adminID, string password)
+    {
+        var adminAssociations = CarregarAssociacoesCSV("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Admin.csv");
+        var adminAssociation = adminAssociations.FirstOrDefault(a => a.ClienteID == adminID);
+
+        if (adminAssociation != null && password == "admin_password") // Substitua "admin_password" pelo método real de verificação de senha
+        {
+            return $"Admin '{adminID}' autenticado com sucesso.";
+        }
+
+        return "Falha na autenticação do admin.";
     }
 
     static void AdicionarClienteDesassociado(string clienteID)
