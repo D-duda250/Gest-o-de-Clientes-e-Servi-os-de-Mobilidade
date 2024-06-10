@@ -2,100 +2,81 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System;
 using System.Text;
+using System.Threading;
 
 class Cliente
 {
-    private static readonly ConnectionFactory factory = new ConnectionFactory() { HostName = "localhost" };
-
-    static void Main(string[] args)
+    private static string AskQuestion(string question)
     {
-        while (true)
-        {
-            Console.WriteLine("Insira o seu ID:");
-            string clientId = Console.ReadLine();
-
-            var response = CallServer($"ID:{clientId}");
-
-            Console.WriteLine($" [.] Recebido {response}");
-            HandleServerResponse(response, clientId);
-        }
+        Console.WriteLine(question);
+        return Console.ReadLine();
     }
 
-    private static string CallServer(string message)
+    public static void Main()
     {
+        var factory = new ConnectionFactory() { HostName = "localhost" };
         using (var connection = factory.CreateConnection())
         using (var channel = connection.CreateModel())
         {
-            var replyQueue = channel.QueueDeclare().QueueName;
-            var corrId = Guid.NewGuid().ToString();
-            var props = channel.CreateBasicProperties();
-            props.ReplyTo = replyQueue;
-            props.CorrelationId = corrId;
-
-            var messageBytes = Encoding.UTF8.GetBytes(message);
-            channel.BasicPublish(exchange: "", routingKey: "rpc_queue", basicProperties: props, body: messageBytes);
-
+            var replyQueueName = channel.QueueDeclare().QueueName;
             var consumer = new EventingBasicConsumer(channel);
-            var response = string.Empty;
+            string response = null;
+            var correlationId = Guid.NewGuid().ToString();
+            var props = channel.CreateBasicProperties();
+            props.CorrelationId = correlationId;
+            props.ReplyTo = replyQueueName;
 
             consumer.Received += (model, ea) =>
             {
-                if (ea.BasicProperties.CorrelationId == corrId)
+                var body = ea.Body.ToArray();
+                var responseCorrId = ea.BasicProperties.CorrelationId;
+                if (responseCorrId == correlationId)
                 {
-                    response = Encoding.UTF8.GetString(ea.Body.ToArray());
+                    response = Encoding.UTF8.GetString(body);
+                    Console.WriteLine($" [.] Recebido {response}");
                 }
             };
 
-            channel.BasicConsume(consumer: consumer, queue: replyQueue, autoAck: true);
+            channel.BasicConsume(consumer: consumer, queue: replyQueueName, autoAck: true);
 
-            while (string.IsNullOrEmpty(response))
+            var message = AskQuestion("Digite o comando (ID:<id> para associar, Desassociar:<id> para desassociar):");
+            var messageBytes = Encoding.UTF8.GetBytes(message);
+
+            channel.BasicPublish(exchange: "", routingKey: "rpc_queue", basicProperties: props, body: messageBytes);
+
+            while (response == null)
             {
-                // Waiting for the response
+                Thread.Sleep(100);
             }
 
-            return response;
-        }
-    }
-
-    private static void HandleServerResponse(string response, string clientId)
-    {
-        if (response.Contains("Terminou a tarefa? (Sim/Nao)"))
-        {
-            Console.WriteLine("Terminou a tarefa? (Sim/Nao)");
-            string taskCompleted = Console.ReadLine();
-
-            var nextResponse = CallServer(taskCompleted);
-            Console.WriteLine($" [.] Recebido {nextResponse}");
-
-            if (taskCompleted.Equals("Sim", StringComparison.InvariantCultureIgnoreCase))
+            if (response.Contains("Terminou a tarefa? (Sim/Nao)"))
             {
-                if (nextResponse.Contains("Pretende alocar uma nova tarefa? (Sim/Nao)"))
+                var answer = AskQuestion("Terminou a tarefa? (Sim/Nao)");
+                messageBytes = Encoding.UTF8.GetBytes($"{answer}:{message.Substring(3)}");
+                response = null;
+                channel.BasicPublish(exchange: "", routingKey: "rpc_queue", basicProperties: props, body: messageBytes);
+
+                while (response == null)
                 {
-                    Console.WriteLine("Pretende alocar uma nova tarefa? (Sim/Nao)");
-                    string allocateNewTask = Console.ReadLine();
-
-                    nextResponse = CallServer($"Alocar:{clientId}");
-                    Console.WriteLine($" [.] Recebido {nextResponse}");
+                    Thread.Sleep(100);
                 }
+                Console.WriteLine($" [.] Recebido {response}");
             }
-        }
-        else if (response.Contains("Pretende alocar uma nova tarefa? (Sim/Nao)"))
-        {
-            Console.WriteLine("Pretende alocar uma nova tarefa? (Sim/Nao)");
-            string allocateNewTask = Console.ReadLine();
 
-            var nextResponse = CallServer(allocateNewTask);
-            Console.WriteLine($" [.] Recebido {nextResponse}");
-
-            if (allocateNewTask.Equals("Sim", StringComparison.InvariantCultureIgnoreCase))
+            if (!response.Contains("O ClienteID"))
             {
-                nextResponse = CallServer($"Alocar:{clientId}");
-                Console.WriteLine($" [.] Recebido {nextResponse}");
+                Console.WriteLine("Digite o comando para desassociar (Desassociar:<id>):");
+                var desassociarCommand = Console.ReadLine();
+                messageBytes = Encoding.UTF8.GetBytes(desassociarCommand);
+                response = null;
+                channel.BasicPublish(exchange: "", routingKey: "rpc_queue", basicProperties: props, body: messageBytes);
+
+                while (response == null)
+                {
+                    Thread.Sleep(100);
+                }
+                Console.WriteLine($" [.] Recebido {response}");
             }
-        }
-        else
-        {
-            Console.WriteLine(response);
         }
     }
 }
