@@ -11,6 +11,8 @@ class Servidor
 {
     private static ConnectionFactory factory = new ConnectionFactory() { HostName = "localhost" };
     private const int numThreads = 3;
+    private static readonly string baseDirectory = @"C:\Users\Duarte Oliveira\source\repos\SDTP1\SDTP1";
+    private static readonly string desassociadosFilePath = Path.Combine(baseDirectory, "Desassociados.csv");
 
     static void Main(string[] args)
     {
@@ -20,6 +22,11 @@ class Servidor
             newThread.Name = string.Format("Thread{0}", i + 1);
             newThread.Start();
         }
+    }
+
+    static string GetFilePath(string servicoID)
+    {
+        return Path.Combine(baseDirectory, $"{servicoID}.csv");
     }
 
     static void Server()
@@ -66,104 +73,138 @@ class Servidor
 
     static string ProcessMessage(string message)
     {
-        List<ClienteServicoAssociation> associations = CarregarAssociacoesCSV("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico.csv");
+        var parts = message.Split(':');
+        var action = parts[0];
+        var clientID = parts.Length > 1 ? parts[1] : null;
 
-        if (message.StartsWith("ID:"))
+        switch (action)
         {
-            string clienteID = message.Substring(3);
-            string servicoAssociado = VerificarServicoAssociado(associations, clienteID);
-
-            if (servicoAssociado == null)
-            {
-                int sA = 0, sB = 0, sC = 0, sD = 0;
-                foreach (var assoc in associations)
-                {
-                    if (assoc.ServicoID == "Servico_A") sA++;
-                    else if (assoc.ServicoID == "Servico_B") sB++;
-                    else if (assoc.ServicoID == "Servico_C") sC++;
-                    else if (assoc.ServicoID == "Servico_D") sD++;
-                }
-
-                string servicoMenosIDs = new[] { (sA, "Servico_A"), (sB, "Servico_B"), (sC, "Servico_C"), (sD, "Servico_D") }.OrderBy(t => t.Item1).First().Item2;
-                int totalIDs = sA + sB + sC + sD + 1;
-
-                AdicionarNovoID("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico.csv", servicoMenosIDs, totalIDs);
-                servicoAssociado = servicoMenosIDs;
-            }
-
-            var tarefas = CarregarTarefasCSV(servicoAssociado);
-            var tarefasDisponiveis = tarefas.Count(t => t.Estado == "Nao alocado");
-            var estadoUltimaTarefa = tarefas.LastOrDefault(t => t.ClienteID == clienteID)?.Estado;
-
-            var resposta = $"O ClienteID '{clienteID}' está associado ao Servico '{servicoAssociado}'. Este serviço tem {tarefasDisponiveis} tarefas disponíveis.\n";
-            if (estadoUltimaTarefa != null)
-            {
-                resposta += $"A última tarefa associada ao ClienteID '{clienteID}' possui o estado: {estadoUltimaTarefa}.\n";
-                if (estadoUltimaTarefa == "Em curso")
-                {
-                    resposta += "Terminou a tarefa? (Sim/Nao)";
-                }
-            }
-            else
-            {
-                resposta += "Não foi encontrada nenhuma tarefa associada ao ClienteID.";
-            }
-
-            return resposta;
+            case "ID":
+                return HandleClientID(clientID);
+            case "Sim":
+            case "Nao":
+                return HandleClientResponse(action, clientID);
+            case "Alocar":
+                return HandleAlocarRequest(clientID);
+            case "Desassociar":
+                return HandleDesassociar(clientID, parts.Length > 2 && parts[2] == "Sim");
+            default:
+                return "Comando não reconhecido.";
         }
-        else if (message.StartsWith("Desassociar:"))
+    }
+
+    static string HandleClientID(string clientID)
+    {
+        var associations = CarregarAssociacoesCSV("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico.csv");
+        string servicoAssociado = VerificarServicoAssociado(associations, clientID);
+
+        if (servicoAssociado == null)
         {
-            string clienteID = message.Substring(12);
-            string servicoAssociado = VerificarServicoAssociado(associations, clienteID);
+            servicoAssociado = AtribuirNovoServico(associations, clientID);
+        }
 
-            if (servicoAssociado != null)
+        if (servicoAssociado != null)
+        {
+            var tarefas = CarregarTarefasCSV(servicoAssociado);
+            string ultimoEstado = VerificarEstadoTarefa(tarefas, clientID);
+            int tarefasDisponiveis = tarefas.Count(t => t.Estado == "Nao alocado");
+
+            var response = $"O ClienteID '{clientID}' está associado ao Servico '{servicoAssociado}'.\n";
+            response += $"Este serviço tem {tarefasDisponiveis} tarefas disponíveis.\n";
+            if (ultimoEstado != null)
             {
-                var tarefas = CarregarTarefasCSV(servicoAssociado);
-                var tarefaEmCurso = tarefas.Any(t => t.ClienteID == clienteID && t.Estado == "Em curso");
-
-                if (tarefaEmCurso)
+                response += $"A última tarefa associada ao ClienteID '{clientID}' possui o estado: {ultimoEstado}.\n";
+                if (ultimoEstado == "Em curso")
                 {
-                    return $"O ClienteID '{clienteID}' não pode ser desassociado porque possui uma tarefa em curso.";
+                    response += "Terminou a tarefa? (Sim/Nao)";
                 }
                 else
                 {
-                    RemoverID("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico.csv", clienteID);
-                    return $"O ClienteID '{clienteID}' foi desassociado do Servico '{servicoAssociado}'.";
+                    response += "Quer desassociar-se deste serviço? (Sim/Nao)";
                 }
             }
-            else
-            {
-                return $"O ClienteID '{clienteID}' não está associado a nenhum serviço.";
-            }
+
+            return response;
         }
-        else if (message.StartsWith("Sim:"))
+
+        return "Não foi encontrada nenhuma tarefa associada ao ClienteID.";
+    }
+
+    static string HandleClientResponse(string response, string clientID)
+    {
+        if (response == "Sim")
         {
-            string clienteID = message.Substring(4);
-            string servicoAssociado = VerificarServicoAssociado(associations, clienteID);
+            var servicoAssociado = VerificarServicoAssociado(CarregarAssociacoesCSV("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico.csv"), clientID);
             var tarefas = CarregarTarefasCSV(servicoAssociado);
-            var ultimaTarefa = tarefas.LastOrDefault(t => t.ClienteID == clienteID && t.Estado == "Em curso");
+            var tarefaAtual = tarefas.FirstOrDefault(t => t.ClienteID == clientID && t.Estado == "Em curso");
 
-            if (ultimaTarefa != null)
+            if (tarefaAtual != null)
             {
-                ultimaTarefa.Estado = "Concluido";
+                tarefaAtual.Estado = "Concluido";
                 AtualizarTarefas(servicoAssociado, tarefas);
-            }
-
-            var proximaTarefaNaoAlocada = tarefas.FirstOrDefault(t => t.Estado == "Nao alocado");
-            if (proximaTarefaNaoAlocada != null)
-            {
-                proximaTarefaNaoAlocada.ClienteID = clienteID;
-                proximaTarefaNaoAlocada.Estado = "Em curso";
-                AtualizarTarefas(servicoAssociado, tarefas);
-                return $"ClienteID '{clienteID}' alocado à próxima tarefa '{proximaTarefaNaoAlocada.TarefaID}' - '{proximaTarefaNaoAlocada.Descricao}'.";
+                return "Pretende alocar uma nova tarefa? (Sim/Nao)";
             }
             else
             {
-                return "Não existem mais tarefas de momento.";
+                return $"Deseja realmente desassociar-se deste serviço? Responda com 'Desassociar:{clientID}:Sim' ou 'Desassociar:{clientID}:Nao'";
             }
         }
+        else if (response == "Nao")
+        {
+            return "Insira o seu ID:";
+        }
 
-        return "Comando inválido.";
+        return "Comando não reconhecido.";
+    }
+
+    static string HandleAlocarRequest(string clientID)
+    {
+        var servicoAssociado = VerificarServicoAssociado(CarregarAssociacoesCSV("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico.csv"), clientID);
+        var tarefas = CarregarTarefasCSV(servicoAssociado);
+        var novaTarefa = tarefas.FirstOrDefault(t => t.Estado == "Nao alocado");
+
+        if (novaTarefa != null)
+        {
+            novaTarefa.ClienteID = clientID;
+            novaTarefa.Estado = "Em curso";
+            AtualizarTarefas(servicoAssociado, tarefas);
+            return $"ClienteID '{clientID}' alocado à tarefa '{novaTarefa.TarefaID}' - '{novaTarefa.Descricao}'.";
+        }
+
+        return "Não existem mais tarefas de momento.";
+    }
+
+    static string HandleDesassociar(string clienteID, bool confirmar)
+    {
+        if (!confirmar)
+        {
+            return "Insira o seu ID:";
+        }
+
+        var associations = CarregarAssociacoesCSV("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico.csv");
+        var servicoAssociado = VerificarServicoAssociado(associations, clienteID);
+        var tarefas = CarregarTarefasCSV(servicoAssociado);
+        var estadoTarefa = VerificarEstadoTarefa(tarefas, clienteID);
+
+        if (estadoTarefa == "Em curso")
+        {
+            return $"O ClienteID '{clienteID}' não pode se desassociar pois possui uma tarefa em curso.";
+        }
+
+        // Adicionar o cliente ao arquivo de desassociados
+        AdicionarClienteDesassociado(clienteID);
+
+        // Remover o cliente da lista de associações
+        RemoverID("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico.csv", clienteID);
+        return $"O ClienteID '{clienteID}' foi desassociado do serviço '{servicoAssociado}'.";
+    }
+
+    static void AdicionarClienteDesassociado(string clienteID)
+    {
+        using (StreamWriter writer = new StreamWriter(desassociadosFilePath, true))
+        {
+            writer.WriteLine(clienteID);
+        }
     }
 
     static List<ClienteServicoAssociation> CarregarAssociacoesCSV(string filePath)
@@ -186,6 +227,12 @@ class Servidor
         return associations;
     }
 
+    static string VerificarServicoAssociado(List<ClienteServicoAssociation> associations, string clienteID)
+    {
+        ClienteServicoAssociation association = associations.FirstOrDefault(a => a.ClienteID == clienteID);
+        return association != null ? association.ServicoID : null;
+    }
+
     static List<Tarefa> CarregarTarefasCSV(string servicoID)
     {
         string filePath = GetFilePath(servicoID);
@@ -196,27 +243,23 @@ class Servidor
             while ((line = reader.ReadLine()) != null)
             {
                 string[] parts = line.Split(',');
-                if (parts.Length >= 4)
+                if (parts.Length == 4)
                 {
-                    tarefas.Add(new Tarefa(parts[0].Trim(), parts[1].Trim(), parts[2].Trim(), parts[3].Trim()));
+                    string tarefaID = parts[0].Trim();
+                    string descricao = parts[1].Trim();
+                    string estado = parts[2].Trim();
+                    string clienteID = parts[3].Trim();
+                    tarefas.Add(new Tarefa(tarefaID, descricao, estado, clienteID));
                 }
             }
         }
         return tarefas;
     }
 
-    static string VerificarServicoAssociado(List<ClienteServicoAssociation> associations, string clienteID)
+    static string VerificarEstadoTarefa(List<Tarefa> tarefas, string clienteID)
     {
-        ClienteServicoAssociation association = associations.FirstOrDefault(a => a.ClienteID == clienteID);
-        return association != null ? association.ServicoID : null;
-    }
-
-    static void AdicionarNovoID(string filePath, string servicoMenosIDs, int novoID)
-    {
-        using (StreamWriter writer = new StreamWriter(filePath, true))
-        {
-            writer.WriteLine($"{servicoMenosIDs},{novoID}");
-        }
+        Tarefa tarefa = tarefas.FirstOrDefault(t => t.ClienteID == clienteID);
+        return tarefa != null ? tarefa.Estado : null;
     }
 
     static void RemoverID(string filePath, string clienteID)
@@ -227,7 +270,7 @@ class Servidor
         {
             foreach (var assoc in updatedAssociations)
             {
-                writer.WriteLine($"{assoc.ServicoID},{assoc.ClienteID}");
+                writer.WriteLine($"{assoc.ClienteID},{assoc.ServicoID}");
             }
         }
     }
@@ -237,7 +280,6 @@ class Servidor
         string filePath = GetFilePath(servicoID);
         using (StreamWriter writer = new StreamWriter(filePath))
         {
-            writer.WriteLine("TarefaID,Descricao,Estado,ClienteID");
             foreach (var tarefa in tarefas)
             {
                 writer.WriteLine($"{tarefa.TarefaID},{tarefa.Descricao},{tarefa.Estado},{tarefa.ClienteID}");
@@ -245,10 +287,41 @@ class Servidor
         }
     }
 
-    static string GetFilePath(string servicoID)
+    static string AtribuirNovoServico(List<ClienteServicoAssociation> associations, string clientID)
     {
-        string baseDirectory = @"C:\Users\Duarte Oliveira\source\repos\SDTP1\SDTP1";
-        return Path.Combine(baseDirectory, $"{servicoID}.csv");
+        int sA = 0, sB = 0, sC = 0, sD = 0;
+
+        foreach (var ID in associations)
+        {
+            if (ID.ServicoID == "Servico_A") sA++;
+            else if (ID.ServicoID == "Servico_B") sB++;
+            else if (ID.ServicoID == "Servico_C") sC++;
+            else if (ID.ServicoID == "Servico_D") sD++;
+        }
+
+        string servicoMenosIDs = null;
+        int menorNumeroIDs = int.MaxValue;
+
+        if (sA < menorNumeroIDs) { menorNumeroIDs = sA; servicoMenosIDs = "Servico_A"; }
+        if (sB < menorNumeroIDs) { menorNumeroIDs = sB; servicoMenosIDs = "Servico_B"; }
+        if (sC < menorNumeroIDs) { menorNumeroIDs = sC; servicoMenosIDs = "Servico_C"; }
+        if (sD < menorNumeroIDs) { menorNumeroIDs = sD; servicoMenosIDs = "Servico_D"; }
+
+        if (servicoMenosIDs != null)
+        {
+            AdicionarNovoID("C:\\Users\\Duarte Oliveira\\source\\repos\\SDTP1\\SDTP1\\Servico.csv", clientID, servicoMenosIDs);
+            return servicoMenosIDs;
+        }
+
+        return null;
+    }
+
+    static void AdicionarNovoID(string filePath, string clienteID, string servicoMenosIDs)
+    {
+        using (StreamWriter writer = new StreamWriter(filePath, true))
+        {
+            writer.WriteLine($"{clienteID},{servicoMenosIDs}");
+        }
     }
 
     class ClienteServicoAssociation

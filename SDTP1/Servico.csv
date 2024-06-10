@@ -1,5 +1,4 @@
 ClienteID,ServicoID
-1,Servico_A
 2,Servico_A
 3,Servico_A
 4,Servico_B
@@ -15,3 +14,4 @@ ClienteID,ServicoID
 Servico_B,14
 Servico_B,14
 Servico_B,14
+1,Servico_A
